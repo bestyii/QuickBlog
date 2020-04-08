@@ -89,22 +89,22 @@ class Csdn extends Plugin
      * 更新文章
      * @param $title
      * @param $content
-     * @param null $thirdUId
+     * @param null $thirdId
      * @return array
      */
-    protected function sendPost($title, $content, $thirdUId = null)
+    protected function sendPost($title, $content, $thirdId = null)
     {
         $url = "https://blog-console-api.csdn.net/v1/mdeditor/saveArticle";
         $client = new Client();
         $Parsedown = new Parsedown();
-        $playload = [
+        $payload = [
             'authorized_status' => false,
             'categories'        => '',
             'content'           => $Parsedown->text($content),
             'markdowncontent'   => $content,
             'not_auto_saved'    => "1",
             'original_link'     => "",
-            'readType'          => "private",// public
+            'readType'          => config('APP_DEBUG', false) ? 'private' : 'public',//"private",// public
             'source'            => "pc_mdeditor",
             'status'            => "0",
             'tags'              => "",
@@ -112,12 +112,12 @@ class Csdn extends Plugin
             'type'              => "original",
 
         ];
-        if($thirdUId){
-            $playload['id'] = $thirdUId;
+        if($thirdId){
+            $payload['id'] = $thirdId;
         }
         try {
             $response = $client->request('POST', $url, [
-                'json' => $playload,
+                'json' => $payload,
                 'headers' => [
                     'content-type'=> 'application/json',
                     'Cookie' => $this->getCookie(),
@@ -134,11 +134,6 @@ class Csdn extends Plugin
             Log::error($error);
             throw new Exception($error);
         }catch (BadResponseException $exception){
-            // 需要判断文章是否存在
-//            if ($exception->hasResponse()) {
-//                echo $url.PHP_EOL;
-//                var_dump($exception->getResponse()->getBody()->getContents());exit;
-//            }
             throw new Exception($exception->getMessage());
         }
         $response = $response->getBody();
@@ -183,9 +178,35 @@ class Csdn extends Plugin
         return ($this->packageInfo->cookie);
     }
 
+    /**
+     * 验证COOKIE有效性
+     * @param string $cookie
+     * @return bool
+     */
     public function verifyCookie(string $cookie): bool
     {
-        // TODO: Implement verifyCookie() method.
+        $url = "https://blog-console-api.csdn.net/v1/user/info";
+        $client = new Client();
+        try {
+            $response = $client->request('GET', $url, [
+                'headers' => [
+                    'content-type' => 'application/json',
+                    'Cookie'       => $cookie,
+                    'user-agent'   => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
+                ]
+            ]);
+        } catch (ClientException $e) {
+            $error = "验证COOKIE有效性时遇到错误，HTTP状态码：" . $e->getResponse()->getStatusCode() . " message:" . $e->getMessage();
+            Log::error($error);
+            return false;
+        } catch (BadResponseException $exception) {
+            return false;
+        }
+        $response = $response->getBody()->getContents();
+        $data = json_decode($response, true);
+        if (is_array($data) && isset($data['code']) && $data['code'] == 200) {
+            return true;
+        }
         return false;
     }
 

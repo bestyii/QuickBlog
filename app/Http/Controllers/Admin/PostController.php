@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Parsedown;
 use League\HTMLToMarkdown\HtmlConverter;
+use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -30,10 +31,11 @@ class PostController extends Controller
     public function newPostInstance(Request $request)
     {
         $data = $request->only([
-            'title', 'cat_id', 'contents', 'is_show', 'keywords', 'description'
+            'title', 'cat_id', 'contents', 'is_show', 'is_sync', 'keywords', 'description'
         ]);
 
         $data['is_show'] = ($data['is_show'] ?? 0) ? 1 : 0;
+        $data['is_sync'] = ($data['is_sync'] ?? 0) ? 1 : 0;
         if ($ret = Post::newPostInstance($data)) {
             return redirect('/admin/post')->with('message', '新建成功');
         }
@@ -81,10 +83,11 @@ class PostController extends Controller
         }
 
         $data = $request->only([
-            'title', 'cat_id', 'contents', 'is_show', 'keywords', 'description'
+            'title', 'cat_id', 'contents', 'is_show', 'is_sync', 'keywords', 'description'
         ]);
 
         $data['is_show'] = ($data['is_show'] ?? 0) ? 1 : 0;
+        $data['is_sync'] = ($data['is_sync'] ?? 0) ? 1 : 0;
         if ($post->update($data)) {
             return back()->with('message', '新建成功');
         }
@@ -100,15 +103,75 @@ class PostController extends Controller
     public function deletePostInstance(Request $request, $id)
     {
         $post = Post::getPost($id);
-        $post = null;
         if (!$post) {
             return abort(404);
         }
 
-        if($post->deleteAndUnion()){
-            return response('',200);
+        if ($post->deleteAndUnion()) {
+            return response('', 200);
         }
-        return response(eeJson("删除失败",500),500);
+        return response(eeJson("删除失败", 500), 500);
+    }
+
+    /**
+     * 设置精选/取消精选
+     * @param Request $request
+     * @param $id
+     * @return \Illuminate\Http\RedirectResponse|void
+     */
+    public function ActiveFeatured(Request $request, $id)
+    {
+        $post = Post::getPost($id);
+        if (!$post) {
+            return abort(404);
+        }
+        if ($post->featured == 0) {
+            $post->featured = time();
+        } else {
+            $post->featured = 0;
+        }
+        $post->save();
+        return redirect()->back();
+    }
+
+    /**
+     * 上传图片文件
+     * @param Request $request
+     * @return \Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Http\Response
+     */
+    public function uploadImage(Request $request)
+    {
+        $allow_types = ['image/png', 'image/jpeg', 'image/gif', 'image/jpg'];
+        $picture = $request->file('editormd-image-file');
+
+        if ($request->hasFile('editormd-image-file') && $picture->isValid()) {
+
+            if (!in_array($picture->getMiMeType(), $allow_types)) {
+                return response($this->outputImg('图片类型不正确'));
+            }
+
+            if ($picture->getClientSize() > 1024 * 1024 * 6) {
+                return response($this->outputImg('图片大小不能超过 6M'));
+            }
+
+            $path = $picture->store('public/images');
+
+            $path = Storage::url($path);
+            return response($this->outputImg('ok', 1, $path, asset($path)));
+        } else {
+            return response($this->outputImg('无效上传'));
+        }
+    }
+
+    private function outputImg($message, $status = 0, $fileName = '', $url = '')
+    {
+        $data = [
+            'success'  => $status ? 1 : 0,
+            'message'  => $message,
+            'fileName' => $fileName,
+            'url'      => $url
+        ];
+        return json_encode($data);
     }
 
 }

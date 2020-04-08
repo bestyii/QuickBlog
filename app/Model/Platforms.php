@@ -127,12 +127,17 @@ class Platforms extends Model
      */
     public function getCategoryList()
     {
-        $pluginManager = app(\App\Services\PluginManager::class);
-        foreach ($pluginManager->getPlugins() as $plugin) {
-            if ($plugin->name == $this->name) {
-                return $plugin->categoryList();
+        try{
+            $pluginManager = app(\App\Services\PluginManager::class);
+            foreach ($pluginManager->getPlugins() as $plugin) {
+                if ($plugin->name == $this->name) {
+                    return $plugin->categoryList();
+                }
             }
+        }catch (\Exception $exception){
+            return [];
         }
+
         return [];
     }
 
@@ -148,6 +153,7 @@ class Platforms extends Model
             if ($plugin->name == $this->name) {
                 if(boolval($plugin->verifyCookie($cookie))){
                     $this->cookie = $cookie;
+                    $this->save();
                     return true;
                 }
                 return false;

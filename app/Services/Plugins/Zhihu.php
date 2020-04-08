@@ -60,9 +60,36 @@ class Zhihu extends Plugin
         return [];
     }
 
+    /**
+     * 验证COOKIE有效性
+     * @param string $cookie
+     * @return bool
+     * @throws Exception
+     */
     public function verifyCookie(string $cookie): bool
     {
-        // TODO: Implement verifyCookie() method.
+        $url = "https://www.zhihu.com/api/v4/answer_later/count";
+        $client = new Client();
+        try {
+            $response = $client->request('GET', $url, [
+                'headers' => [
+                    'content-type' => 'application/json',
+                    'Cookie'       => $cookie,
+                    'user-agent'   => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
+                ]
+            ]);
+        } catch (ClientException $e) {
+            $error = "验证COOKIE有效性时遇到错误，HTTP状态码：" . $e->getResponse()->getStatusCode() . " message:" . $e->getMessage();
+            Log::error($error);
+            return false;
+        } catch (BadResponseException $exception) {
+            return false;
+        }
+        $response = $response->getBody()->getContents();
+        $data = json_decode($response, true);
+        if (is_array($data) && isset($data['count'])) {
+            return true;
+        }
         return false;
     }
 
@@ -227,16 +254,16 @@ class Zhihu extends Plugin
      */
     protected function updateDrafts($id, $content, $title = null)
     {
-        $playload = [
+        $payload = [
             'content'    => $content,
             'delta_time' => 1,
         ];
-        if (!empty($title)) $playload['title'] = $title;
+        if (!empty($title)) $payload['title'] = $title;
         $url = sprintf("https://zhuanlan.zhihu.com/api/articles/%s/draft", $id);
         $client = new Client();
         try {
             $response = $client->request('PATCH', $url, [
-                'json'    => $playload,
+                'json'    => $payload,
                 'headers' => [
                     'content-type' => 'application/json',
                     'Cookie'       => $this->getCookie(),
@@ -355,7 +382,14 @@ class Zhihu extends Plugin
      */
     protected function getImagesToLocal($url)
     {
-        $img = file_get_contents($url);
+        $stream_opts = [
+            "ssl" => [
+                "verify_peer"=>false,
+                "verify_peer_name"=>false,
+            ]
+        ];
+        $img = file_get_contents($url,
+            false, stream_context_create($stream_opts));
         $urlInfo = parse_url($url);
         $pathInfo = pathinfo($urlInfo['path']);
         $ext = $pathInfo['extension'] ?? 'jpg';
@@ -474,5 +508,7 @@ class Zhihu extends Plugin
         $signature = base64_encode(hash_hmac('sha1', $input, $AccessKeySecret, true));
         return 'OSS ' . $accessKeyId . ':' . $signature;
     }
+
+
 
 }

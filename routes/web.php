@@ -17,6 +17,7 @@ Route::get('/hots', 'PostsController@showHotsPosts');
 Route::get('/category/{id}', 'PostsController@showCategoryPosts');
 Route::get('/post/{id}', 'PostsController@showPostDetail');
 Route::get('/archive/{date}', 'PostsController@showArchiveList');
+Route::get('/about', 'AboutController@showPage');
 
 Route::get('/login', 'LoginController@showLoginPage')->name('login');
 Route::post('/login', 'LoginController@verifyLogin');
@@ -29,6 +30,7 @@ Route::group(['prefix' => 'admin', 'middleware' => ['web','auth']], function (){
     Route::post('/platforms/{id}/category/union', 'Admin\PlatformsController@createUnionCategory');
     Route::get('/platforms/{id}/category/union', 'Admin\PlatformsController@getUnionCategoryList');
 
+    Route::get('/post/{id}/featured', 'Admin\PostController@ActiveFeatured');
     Route::get('/post', 'Admin\PostController@showPostList');
     Route::get('/post/new', 'Admin\PostController@showEditorPage');
     Route::post('/post/new', 'Admin\PostController@newPostInstance');
@@ -36,6 +38,8 @@ Route::group(['prefix' => 'admin', 'middleware' => ['web','auth']], function (){
     Route::get('/post/{id}', 'Admin\PostController@showEditorPageWithPost');
     Route::post('/post/{id}', 'Admin\PostController@updatePostInstance');
     Route::delete('/post/{id}', 'Admin\PostController@deletePostInstance');
+
+    Route::post('/upload', 'Admin\PostController@uploadImage');
 
 
     Route::get('/category', 'Admin\CategoryController@showListPage');
@@ -49,5 +53,8 @@ Route::group(['prefix' => 'admin', 'middleware' => ['web','auth']], function (){
     Route::get('/log/clear', 'Admin\SchemesLogController@clearLog');
 
     Route::get('/helper', 'Admin\HelperController@showInfo');
+
+    Route::get('/setting', 'Admin\SettingController@showSettingPage');
+    Route::post('/setting', 'Admin\SettingController@updateSetting');
 });
 

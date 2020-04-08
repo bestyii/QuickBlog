@@ -126,7 +126,7 @@ class Jianshu extends Plugin
             $categoryId = Arr::get($category,'id','0');
         }
 
-        $playload = [
+        $payload = [
             'autosave_control' => $this->getAutoSaveId($id, $categoryId) + 1,
             'content'          => $content,
             'title'            => $title,
@@ -136,7 +136,7 @@ class Jianshu extends Plugin
         $client = new Client();
         try {
             $response = $client->request('PUT', $url, [
-                'json' => $playload,
+                'json' => $payload,
                 'headers' => [
                     'content-type'=> 'application/json',
                     'Accept'=> 'application/json',
@@ -154,6 +154,7 @@ class Jianshu extends Plugin
         $response = $response->getBody()->getContents();
         $data = json_decode($response,  true);
         if(is_array($data) && isset($data['content_size_status']) &&  isset($data['id'])){
+            sleep(5);// 简书发的太快会被检测
             if($this->publicize($data['id'])){
                 return ['id' => $data['id'],'url' => sprintf('https://www.jianshu.com/p/%s', $slug ?? '')];// 更新时这个值为空
             }
@@ -182,13 +183,13 @@ class Jianshu extends Plugin
         }
         $client = new Client();
         $url = "https://www.jianshu.com/author/notes";
-        $playload = [
+        $payload = [
             'at_bottom' => true,
             'notebook_id' => $noteBookId,// 分类ID 42826786
             'title' => $title,
         ];
         $response = $client->request('POST', $url, [
-            'json' => $playload,
+            'json' => $payload,
             'headers' => [
                 'content-type'=> 'application/json',
                 'Accept'=> 'application/json',
@@ -209,9 +210,9 @@ class Jianshu extends Plugin
     {
         $url = sprintf("https://www.jianshu.com/author/notes/%s/publicize", $id);
         $client = new Client();
-        $playload = [];
+        $payload = [];
         $response = $client->request('POST', $url, [
-            'json' => $playload,
+            'json' => $payload,
             'headers' => [
                 'content-type'=> 'application/json',
                 'Accept'=> 'application/json',
@@ -247,9 +248,9 @@ class Jianshu extends Plugin
     {
         $url = sprintf("https://www.jianshu.com/author/notebooks/%s/notes", $categoryId);
         $client = new Client();
-        $playload = [];
+        $payload = [];
         $response = $client->request('GET', $url, [
-            'json' => $playload,
+            'json' => $payload,
             'headers' => [
                 'content-type'=> 'application/json',
                 'Accept'=> 'application/json',
@@ -269,9 +270,35 @@ class Jianshu extends Plugin
         return 0;
     }
 
+    /**
+     * 验证COOKIE有效性
+     * @param string $cookie
+     * @return bool
+     */
     public function verifyCookie(string $cookie): bool
     {
-        // TODO: Implement verifyCookie() method.
+        $url = "https://www.jianshu.com/settings/basic.json";
+        $client = new Client();
+        try {
+            $response = $client->request('GET', $url, [
+                'headers' => [
+                    'content-type' => 'application/json',
+                    'Cookie'       => $cookie,
+                    'user-agent'   => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36',
+                ]
+            ]);
+        } catch (ClientException $e) {
+            $error = "验证COOKIE有效性时遇到错误，HTTP状态码：" . $e->getResponse()->getStatusCode() . " message:" . $e->getMessage();
+            Log::error($error);
+            return false;
+        } catch (BadResponseException $exception) {
+            return false;
+        }
+        $response = $response->getBody()->getContents();
+        $data = json_decode($response, true);
+        if (is_array($data) && isset($data['data'])) {
+            return true;
+        }
         return false;
     }
 

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 class Post extends Model
 {
     protected $dateFormat = 'U';
-    protected $fillable = ['title', 'keywords', 'description', 'contents', 'post_img', 'category', 'cat_id', 'is_show'];
+    protected $fillable = ['title', 'keywords', 'description', 'contents', 'post_img', 'category', 'cat_id', 'is_show','is_sync'];
 
 
     /**
@@ -113,6 +113,21 @@ class Post extends Model
     public static function getPost($id)
     {
         return self::find($id);
+    }
+
+    /**
+     * 获取访客博文详情并增加阅览
+     * @param $id
+     * @return mixed
+     */
+    public static function getGuestPostDetail($id)
+    {
+        $post = self::getPost($id);
+        if ($post) {
+            $post->click++;
+            $post->save();
+        }
+        return $post;
     }
 
     /**
